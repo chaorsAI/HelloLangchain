@@ -1,0 +1,7 @@
+- Langchain调用大模型
+- prompt template
+- 结果解析器
+- 自定义结果解析器
+- 服务部署
+    - FastAPI
+    - 本地客户端
