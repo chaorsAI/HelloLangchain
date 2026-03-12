@@ -1,3 +1,5 @@
+# vector_store.as_retriever-mmr使用示例
+
 # 环境准备：pip install langchain langchain-chroma
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
