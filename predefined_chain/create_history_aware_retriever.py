@@ -2,7 +2,8 @@
 # 确保已安装: pip install langchain langchain-openai langchain-chroma
 import os
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_chroma import Chroma
+# from langchain_chroma import Chroma
+from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_classic.chains.retrieval import create_retrieval_chain
