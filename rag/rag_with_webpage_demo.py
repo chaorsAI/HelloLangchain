@@ -1,6 +1,7 @@
+# 基于Langchain-RAG的Web网页摘要检索
+
 import os
 import bs4
-import langchain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_classic.chains.retrieval import create_retrieval_chain
 
@@ -10,6 +11,8 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.embeddings.dashscope import DashScopeEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_classic.chains.summarize import load_summarize_chain
+from langchain_core.prompts import PromptTemplate
 
 from models import get_lc_model_client, ALI_TONGYI_EMBEDDING_MODEL, ALI_TONGYI_API_KEY_OS_VAR_NAME, get_ali_embeddings, \
     get_tencent_embeddings, get_ali_model_client, get_baichuan_embeddings, get_ali_embeddings
@@ -66,25 +69,37 @@ prompt_template = ChatPromptTemplate.from_messages(
     ]
 )
 
+# ====================== 方式1：retrieval_chain + documents_chain ======================
 #创建链，预定义链 create_stuff_documents_chain 文档链
 documents_chain = create_stuff_documents_chain(client,prompt_template)
 #  参数1:是检索器  参数2:是文档链
 retrieval_chain = create_retrieval_chain(retriever, documents_chain)
 # 用大模型生成答案
-resp = retrieval_chain.invoke({"input":"会议说了什么?"})
+resp = retrieval_chain.invoke({"input":"会议摘要?"})
 
-print(type(resp))
-print(resp)
-print("===================")
+print("=========方式1：retrieval_chain + documents_chain==========")
 print(resp["answer"])
 
-# documents = resp["context"]
-# print(documents[0].metadata['page_content'])
 
-# for docs in resp["context"]:
-#     print(docs.page_content)
-# print(resp["context"][0].page_content)
+# ====================== 方式2：load_summarize_chain ======================
+# 定义明确要求中文摘要的提示词模板
+# 注意：{text} 是占位符，链会自动将文档内容填充到这里
+prompt_template = """请用中文，简洁地总结以下文本的主要内容：
 
-# contexts = []
-# contexts.append([doc.page_content for doc in resp["context"]])
-# print(contexts)
+{text}
+
+请确保摘要完全使用中文，并涵盖核心要点。
+中文摘要："""
+prompt = PromptTemplate(template=prompt_template, input_variables=["text"])
+
+summarize_chain = load_summarize_chain(
+    llm=client,
+    chain_type="stuff", # 使用stuff策略
+    prompt=prompt
+    )
+
+# 4. 执行摘要
+summary = summarize_chain.invoke(docs)
+print("=========方式2：load_summarize_chain ==========")
+# print(summary)
+print(summary["output_text"])
