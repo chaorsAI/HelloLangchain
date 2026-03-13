@@ -1,8 +1,10 @@
 # 天气查询Demo实战 get_weather_demo
+# from tkinter.scrolledtext import example
 
 import requests
 from datetime import datetime
 from typing import Optional, Type, Any
+
 from pydantic import BaseModel, Field
 import os
 
@@ -18,6 +20,9 @@ from langchain_classic.agents import AgentExecutor, create_react_agent
 from langchain_classic.tools import BaseTool, StructuredTool
 from langchain_classic.schema import HumanMessage, AIMessage
 from langgraph.checkpoint.memory import InMemorySaver
+
+import gradio as gr
+from streamlit import title
 
 from models import get_lc_model_client, get_ali_model_client, get_ali_embeddings
 
@@ -117,49 +122,119 @@ def create_weather_agent():
 
     return agent
 
-# 使用示例
+# 创建Agent
+weather_agent = create_weather_agent()
+
+# ====================== 使用示例：前端调用 ======================
+# 与前端交互处理LLM响应
+def process_llm_response(query, show_history):
+
+    if len(query) == 0:
+        return show_history + [("", "")]
+    try:
+        # 显示用户查询和等待提示
+        yield show_history + [(query, "正在查询大模型...")], ""
+
+        # 使用Agent处理查询
+        response = weather_agent.invoke(
+            {"messages": [{"role": "user", "content": query}]},
+            # 配置会话标识，用于区分不同用户
+            config={"configurable": {"thread_id": "user_1"}}  # 会话唯一标识，用于区分不同用户
+        )
+        print(f"LLM输出：{response}")
+
+        # 正确提取回答内容 - 只显示output部分
+        if isinstance(response, dict) and 'messages' in response:
+            response = response["messages"][-1].content
+        else:
+            # 如果response不是预期的字典格式，尝试提取其他可能的字段
+            response = str(response)
+            print(f"警告: 响应格式异常: {response}")
+
+        # 返回结果
+        yield show_history + [(query, response)], ""
+    except Exception as e:
+        print(f"Error: {e}")
+        yield show_history + [(query, "AI助手出错，请重试或者检查")]
+
+
+# 前端界面展示
+with gr.Blocks(title="天气查询小助手Demo演示") as demo:
+    gr.HTML('<center><h1>欢迎使用天气查询小助手，我将竭诚为您服务...</h1></center>')
+
+    with gr.Row():
+        with gr.Column(scale=10):
+            chatbot = gr.Chatbot(height=650)
+
+    with gr.Row():
+        msg = gr.Textbox(label="输入", placeholder="你想问什么有关天气的问题呢？")
+
+    with gr.Row():
+        example = gr.Examples(
+            examples=[
+                "河曲的天气怎么样？",
+                "准备现在去鄂尔多斯，该穿什么衣服？",
+                "今天要去天安门，需要带雨伞吗？",
+                "杭州和南京哪里天气更热？"
+
+            ],
+            inputs=[msg]
+        )
+
+    clear = gr.ClearButton([chatbot, msg])
+    msg.submit(process_llm_response, inputs=[msg, chatbot], outputs=[chatbot, msg])
+
+
+
+# ====================== 使用示例：控制台调用 ======================
+# if __name__ == '__main__':
+#     print("\n🔧 天气查询 - 控制台调用 ")
+#
+#     # 2. 调用示例
+#     print("----------" + "示例1" + "----------")
+#     result = weather_agent.invoke(
+#         input={"messages": [{"role": "user", "content": "北京的天气怎么样"}]},
+#         config={"configurable": {"thread_id": "user_1"}}  # 会话唯一标识，用于区分不同用户
+#     )
+#     print(result)
+#
+#     # 示例2：包含比较的查询
+#     print("----------" + "示例2：比较查询" + "----------")
+#     result2 = weather_agent.invoke(
+#         input={"messages": [{"role": "user", "content": "北京和深圳哪里更热？"}]},
+#         config={"configurable": {"thread_id": "user_1"}}  # 会话唯一标识，用于区分不同用户
+#     )
+#     print("示例2回复:", result2)
+#
+#
+#     # 示例3：多轮对话
+#     print("-------------------" + "示例3：多轮对话" + "-------------------")
+#     # 第一步：用户发起新对话
+#     print("******" + "第一轮对话" + "******")
+#     result2_0 = weather_agent.invoke(
+#         input={"messages": [{"role": "user", "content": "我想知道几个城市的天气"}]},
+#         config={"configurable": {"thread_id": "user3_1"}}  # 会话唯一标识，用于区分不同用户
+#     )
+#     print("AI首次回复:", result2_0["messages"][-1].content)  # 输出AI的回复
+#
+#     # 第二步：用户继续提问，使用相同的thread_id
+#     print("******" + "第二轮对话" + "******")
+#     result2_1 = weather_agent.invoke(
+#         input={"messages": [{"role": "user", "content": "先看下杭州的天气吧"}]},
+#         config={"configurable": {"thread_id": "user3_1"}}  # 会话唯一标识，用于区分不同用户
+#     )
+#     print("AI二轮回复:", result2_1["messages"][-1].content)
+#
+#     print("******" + "第三轮对话" + "******")
+#     result2_2 = weather_agent.invoke(
+#         input={"messages": [{"role": "user", "content": "我最开始问的啥问题？"}]},
+#         config={"configurable": {"thread_id": "user3_1"}}  # 会话唯一标识，用于区分不同用户
+#     )
+#     print("AI三轮回复:", result2_2["messages"][-1].content)
+
+
 if __name__ == '__main__':
-    # 1. 创建Agent
-    weather_agent = create_weather_agent()
-
-    # 2. 调用示例
-    print("----------" + "示例1" + "----------")
-    result = weather_agent.invoke(
-        input={"messages": [{"role": "user", "content": "北京的天气怎么样"}]},
-        config={"configurable": {"thread_id": "user_1"}}  # 会话唯一标识，用于区分不同用户
-    )
-    print(result)
-
-    # 示例2：包含比较的查询
-    print("----------" + "示例2：比较查询" + "----------")
-    result2 = weather_agent.invoke(
-        input={"messages": [{"role": "user", "content": "北京和深圳哪里更热？"}]},
-        config={"configurable": {"thread_id": "user_1"}}  # 会话唯一标识，用于区分不同用户
-    )
-    print("示例2回复:", result2)
-
-
-    # 示例3：多轮对话
-    print("-------------------" + "示例3：多轮对话" + "-------------------")
-    # 第一步：用户发起新对话
-    print("******" + "第一轮对话" + "******")
-    result2_0 = weather_agent.invoke(
-        input={"messages": [{"role": "user", "content": "我想知道几个城市的天气"}]},
-        config={"configurable": {"thread_id": "user3_1"}}  # 会话唯一标识，用于区分不同用户
-    )
-    print("AI首次回复:", result2_0["messages"][-1].content)  # 输出AI的回复
-
-    # 第二步：用户继续提问，使用相同的thread_id
-    print("******" + "第二轮对话" + "******")
-    result2_1 = weather_agent.invoke(
-        input={"messages": [{"role": "user", "content": "先看下杭州的天气吧"}]},
-        config={"configurable": {"thread_id": "user3_1"}}  # 会话唯一标识，用于区分不同用户
-    )
-    print("AI二轮回复:", result2_1["messages"][-1].content)
-
-    print("******" + "第三轮对话" + "******")
-    result2_2 = weather_agent.invoke(
-        input={"messages": [{"role": "user", "content": "我最开始问的啥问题？"}]},
-        config={"configurable": {"thread_id": "user3_1"}}  # 会话唯一标识，用于区分不同用户
-    )
-    print("AI三轮回复:", result2_2["messages"][-1].content)
+    print("\n🔧 天气查询 - 前端调用 ")
+    demo.launch()
+    # 指定端口的启动方式
+    # demo.launch(server_port=7778)
