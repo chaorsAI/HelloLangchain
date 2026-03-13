@@ -3,7 +3,6 @@ import re
 import json
 import time
 
-import langchain
 from langchain_core.runnables import RunnableLambda, RunnableParallel, RunnablePassthrough
 from langchain_community.chat_models import ChatTongyi
 from langchain_core.prompts import ChatPromptTemplate
@@ -395,86 +394,85 @@ if __name__ == "__main__":
 # 生产环境增强功能 感兴趣的可以了解--------------------------------
 
 # 1. 批量处理优化
-# def batch_process_feedbacks(feedbacks, batch_size=5):
-#     """批量处理客户反馈"""
-#     from langchain_core.runnables import RunnableMap
-#
-#     batch_chain = RunnableMap({
-#         "results": lambda x: [processing_chain.invoke(fb) for fb in x]
-#     })
-#
-#     results = []
-#     for i in range(0, len(feedbacks), batch_size):
-#         batch = feedbacks[i:i + batch_size]
-#         results.extend(batch_chain.invoke(batch)["results"])
-#         print(f"已处理 {min(i + batch_size, len(feedbacks))}/{len(feedbacks)} 条反馈")
-#         time.sleep(1)  # 避免速率限制
-#
-#     return results
-#
-#
-# # 2. 监控与日志
-# import logging
-# from datetime import datetime
-#
-# # 配置日志
-# logging.basicConfig(filename='customer_service.log',
-#                     level=logging.INFO,
-#                     format='%(asctime)s - %(levelname)s - %(message)s')
-#
-#
-# def monitored_processing(feedback):
-#     """带监控的反馈处理"""
-#     start = time.time()
-#     try:
-#         result = processing_chain.invoke(feedback)
-#         elapsed = time.time() - start
-#
-#         # 记录成功日志
-#         logging.info(
-#             f"处理成功 | 时长: {elapsed:.2f}s | 情感: {result.get('sentiment')} | 紧急度: {result.get('urgency')}")
-#
-#         return result
-#     except Exception as e:
-#         elapsed = time.time() - start
-#         # 记录错误日志
-#         logging.error(f"处理失败 | 时长: {elapsed:.2f}s | 错误: {str(e)}")
-#         return {
-#             "final_response": "系统处理遇到问题，已转人工客服处理",
-#             "assigned_team": "Manual"
-#         }
-#
-#
-# # 3. 千问模型优化配置
-# def optimized_qwen_call(prompt, max_tokens=1500):
-#     """针对不同任务的优化调用"""
-#     # 根据任务类型调整参数
-#     task_type = "unknown"
-#     if "情感分析" in prompt:
-#         task_type = "sentiment"
-#         config = {"temperature": 0.2, "max_tokens": 800}
-#     elif "问题分类" in prompt:
-#         task_type = "classification"
-#         config = {"temperature": 0.1, "max_tokens": 600}
-#     elif "紧急程度" in prompt:
-#         task_type = "urgency"
-#         config = {"temperature": 0.3, "max_tokens": 700}
-#     else:  # 回复生成
-#         task_type = "response"
-#         config = {"temperature": 0.5, "max_tokens": max_tokens}
-#
-#     try:
-#         response = qwen.invoke(prompt, **config)
-#         return response.content
-#     except Exception as e:
-#         print(f"优化调用失败 ({task_type}): {str(e)}")
-#         # 降级使用默认调用
-#         return call_qwen_with_retry(prompt)
-#
-#
-# # 4. 缓存机制
-# from langchain.cache import SQLiteCache
-# import langchain
-#
-# langchain.llm_cache = SQLiteCache(database_path=".qwen_cache.db")
+def batch_process_feedbacks(feedbacks, batch_size=5):
+    """批量处理客户反馈"""
+    from langchain_core.runnables import RunnableMap
+
+    batch_chain = RunnableMap({
+        "results": lambda x: [processing_chain.invoke(fb) for fb in x]
+    })
+
+    results = []
+    for i in range(0, len(feedbacks), batch_size):
+        batch = feedbacks[i:i + batch_size]
+        results.extend(batch_chain.invoke(batch)["results"])
+        print(f"已处理 {min(i + batch_size, len(feedbacks))}/{len(feedbacks)} 条反馈")
+        time.sleep(1)  # 避免速率限制
+
+    return results
+
+
+# 2. 监控与日志
+import logging
+from datetime import datetime
+
+# 配置日志
+logging.basicConfig(filename='customer_service.log',
+                    level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+
+def monitored_processing(feedback):
+    """带监控的反馈处理"""
+    start = time.time()
+    try:
+        result = processing_chain.invoke(feedback)
+        elapsed = time.time() - start
+
+        # 记录成功日志
+        logging.info(
+            f"处理成功 | 时长: {elapsed:.2f}s | 情感: {result.get('sentiment')} | 紧急度: {result.get('urgency')}")
+
+        return result
+    except Exception as e:
+        elapsed = time.time() - start
+        # 记录错误日志
+        logging.error(f"处理失败 | 时长: {elapsed:.2f}s | 错误: {str(e)}")
+        return {
+            "final_response": "系统处理遇到问题，已转人工客服处理",
+            "assigned_team": "Manual"
+        }
+
+
+# 3. 千问模型优化配置
+def optimized_qwen_call(prompt, max_tokens=1500):
+    """针对不同任务的优化调用"""
+    # 根据任务类型调整参数
+    task_type = "unknown"
+    if "情感分析" in prompt:
+        task_type = "sentiment"
+        config = {"temperature": 0.2, "max_tokens": 800}
+    elif "问题分类" in prompt:
+        task_type = "classification"
+        config = {"temperature": 0.1, "max_tokens": 600}
+    elif "紧急程度" in prompt:
+        task_type = "urgency"
+        config = {"temperature": 0.3, "max_tokens": 700}
+    else:  # 回复生成
+        task_type = "response"
+        config = {"temperature": 0.5, "max_tokens": max_tokens}
+
+    try:
+        response = qwen.invoke(prompt, **config)
+        return response.content
+    except Exception as e:
+        print(f"优化调用失败 ({task_type}): {str(e)}")
+        # 降级使用默认调用
+        return call_qwen_with_retry(prompt)
+
+
+# 4. 缓存机制
+from langchain_classic.cache import SQLiteCache
+
+langchain.llm_cache = SQLiteCache(database_path=".qwen_cache.db")
 #
